@@ -56,7 +56,10 @@ exports.handler = function(event, context, callback, injectHandler, config) {
 }
 
 var backupGhostBlog = function(config, requestHandler, s3Client) {
-    return requestHandler.post(config.ghostUrl + "/authentication/token", {
+    if(config.ghostUrl.charAt(config.ghostUrl.length-1) !== '/') {
+        config.ghostUrl = config.ghostUrl.concat("/");
+    }
+    return requestHandler.post(config.ghostUrl + "authentication/token", {
         form: {
             grant_type: 'password',
             client_id: config.clientId,
@@ -66,15 +69,14 @@ var backupGhostBlog = function(config, requestHandler, s3Client) {
         }
     }).then(result => {
         var tokenResponse = JSON.parse(result);
-        return requestHandler({
-            'url': config.ghostUrl + "/db",
-            'headers': {
-              'Authorization': 'Bearer ' + tokenResponse.access_token
+        return requestHandler.get(config.ghostUrl + "db", {
+            headers: {
+              Authorization: 'Bearer ' + tokenResponse.access_token
             }
         });
     }).then(result => {
-        s3Client.putObject({
-            'Bucket':config.s3Bucket,
+        return s3Client.putObject({
+            'Bucket': config.s3Bucket,
             'Key': config.s3Key + "/" + moment().format() + ".json",
             'Body': result
         }).promise();
